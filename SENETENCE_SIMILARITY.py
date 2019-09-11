@@ -8,7 +8,7 @@ import math
 
 import gensim
 
-from PREPROCESSING import *
+from PREPROCESSING import PREPROCESSING
 
 import scipy.stats
 
@@ -116,10 +116,103 @@ def VECTORS_AVRG(tokens1,tokens2,model):
         i += 1
     vec2 /= len(tokens2)
 
-    #return cosine_sim(vec1,vec2)
-    return Euclidean_sim(vec1,vec2)
+    return round(cosine_sim(vec1,vec2),2)
+    #return Euclidean_sim(vec1,vec2)
 
 #________________________________________________________________________
+    
+def VECTORS_REPPORT07(tokens1,tokens2,model):
+
+    WV = model.wv
+    
+    wordsIn1 = []
+    wordsIn2 = []
+
+    for word1 in tokens1:
+        if word1 in WV.vocab:
+           wordsIn1.append(word1)
+        
+    for word2 in tokens2:
+        if word2 in WV.vocab:
+           wordsIn2.append(word2)
+
+    #n = len(tokens1)
+    #m = len(tokens2)
+    
+    wordsIn1 = tokens1
+    wordsIn2 = tokens2
+    
+    n = len(wordsIn1)
+    m = len(wordsIn2)
+     
+    Sim1 = 0
+    for word1 in wordsIn1:
+        MaxSim = 0
+        for word2 in wordsIn2:
+            Sim = round(cosine_sim(WV[word1],WV[word2]),2)
+            if MaxSim < Sim:
+               MaxSim = Sim
+        Sim1 += MaxSim     
+    Sim1 /= n
+    
+    Sim2 = 0
+    for word2 in wordsIn2:
+        MaxSim = 0
+        for word1 in wordsIn1:
+            Sim = round(cosine_sim(WV[word1],WV[word2]),2)
+            if MaxSim < Sim:
+               MaxSim = Sim
+        Sim2 += MaxSim     
+    Sim2 /= m
+
+    #Sim = Sim1 if n < m else Sim2
+
+    Sim = (Sim1 + Sim2)/2
+
+    return round(Sim,2)
+    
+#________________________________________________________________________
+
+def OShea_SIMILARITY_EM():
+    DATABASE = open('DATASETS/O’Shea et al/sentsinorder.txt','r')
+    lines = DATABASE.readlines()
+    DATABASE.close()
+
+    print('Loading Google Pre-trained model ...')
+    model = gensim.models.KeyedVectors.load_word2vec_format('/home/polo/Downloads/GoogleNews-vectors-negative300.bin', binary=True)
+    print('Google Pre-trained model has been loaded')
+    
+    #SIMILARITIES = open('SIMILARITIES/O’Shea et al/EM_sentsinorder.txt','w')
+    
+    SimsEM = []
+    SimsAVG = []
+    SimsR7 = []
+    
+    i = 1
+    for line in lines:
+        parts = line.split('.')
+        sentence1 = parts[0]
+        sentence2 = parts[1]
+        
+        tokens1 = PREPROCESSING(sentence1)
+        tokens2 = PREPROCESSING(sentence2)
+        
+        print('_____________'+str(i)+'______________')
+    
+        #SIMILARITIES.write(str(VECTORS_AVRG(tokens1,tokens2,model))+'\n')
+        #SIMILARITIES.write(str(EMMBEDINGS_SIMLARITY(tokens1,tokens2,model))+'\n')
+        SimsAVG.append(VECTORS_AVRG(tokens1,tokens2,model))
+        SimsEM.append(EMMBEDINGS_SIMLARITY(tokens1,tokens2,model))
+        SimsR7.append(VECTORS_REPPORT07(tokens1,tokens2,model))
+        i = i + 1
+
+    #SIMILARITIES.close()
+    
+    Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
+    
+    print(scipy.stats.pearsonr(Act_Sims,SimsEM)[0])
+    print(scipy.stats.pearsonr(Act_Sims,SimsAVG)[0])
+    print(scipy.stats.pearsonr(Act_Sims,SimsR7)[0])
 
 #________________________________________________________________________
                 
@@ -331,18 +424,35 @@ def EVALUATION(k):
 
 def Plotting():
     In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
-             
+ 
     Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
-    Correlations = []    
-    
+    OShea_Correl = []    
     for Alpha in OShea.keys():
-        Correlations.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
+        OShea_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
 
-    x_val = OShea.keys()
-    y_val = Correlations
+    Act_Sims = LOAD_ACTUAL_SIMILARITY('MSRP','msr_paraphrase_test',1)   
+    MSRP_Correl = []     
+    for Alpha in OShea.keys():
+        MSRP_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, MSRP[Alpha])[0],2)))
+
+    Act_Sims = LOAD_ACTUAL_SIMILARITY('SICK','SICK',2)    
+    SICK_Correl = []     
+    for Alpha in OShea.keys():
+        SICK_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, SICK[Alpha])[0],2)))
+
+    x_val = [*OShea]#OShea.keys()
     
-    plt.plot(x_val,y_val)
-    plt.plot(x_val,y_val,'or')
+    #plt.plot(x_val,OShea_Correl,label='OShea')
+    plt.plot(x_val,OShea_Correl,'og')
+
+    #plt.plot(x_val,MSRP_Correl,label='MSRP')
+    plt.plot(x_val,MSRP_Correl,'ob')
+
+    #plt.plot(x_val,SICK_Correl,label='SICK')
+    plt.plot(x_val,SICK_Correl,'or')
+
+    plt.legend()
+
     plt.show()
    
 #------SIMILARITY_EM_DATASETS()
@@ -355,34 +465,4 @@ def Plotting():
 
 #Plotting()
 
-In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
- 
-Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
-OShea_Correl = []    
-for Alpha in OShea.keys():
-    OShea_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
-
-Act_Sims = LOAD_ACTUAL_SIMILARITY('MSRP','msr_paraphrase_test',1)   
-MSRP_Correl = []     
-for Alpha in OShea.keys():
-    MSRP_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, MSRP[Alpha])[0],2)))
-
-Act_Sims = LOAD_ACTUAL_SIMILARITY('SICK','SICK',2)    
-SICK_Correl = []     
-for Alpha in OShea.keys():
-    SICK_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, SICK[Alpha])[0],2)))
-
-x_val = [*OShea]#OShea.keys()
-    
-#plt.plot(x_val,OShea_Correl,label='OShea')
-plt.plot(x_val,OShea_Correl,'og')
-
-#plt.plot(x_val,MSRP_Correl,label='MSRP')
-plt.plot(x_val,MSRP_Correl,'ob')
-
-#plt.plot(x_val,SICK_Correl,label='SICK')
-plt.plot(x_val,SICK_Correl,'or')
-
-plt.legend()
-
-plt.show()
+OShea_SIMILARITY_EM()
