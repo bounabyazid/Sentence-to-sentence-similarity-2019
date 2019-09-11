@@ -14,6 +14,8 @@ import scipy.stats
 
 import pickle as pkl
 
+import matplotlib.pyplot as plt
+
 from sklearn.metrics import confusion_matrix
 
 def Euclidean_sim(a,b):
@@ -183,16 +185,16 @@ def SIMILARITY_EM_DATASETS():
 
 #________________________________________________________________________
 
-def Similarity_AB(EM_Sim, Sim_NER):
-    Alpha = 0.2
+def Similarity_AB(EM_Sim, Sim_NER,Alpha = 0.2):
     Sim = Alpha * EM_Sim + (1-Alpha) * Sim_NER
-    return round(Sim,2)        
+    return round(Sim,2)  
 #________________________________________________________________________
 
 def OVERALL_SIMILARITY_FILE(Folder,inFile):
     Sim_NER = []
     Sim_EM = []
-    
+    Dict = {}
+   
     with open('SIMILARITIES/'+Folder+'/NER_'+inFile+'.txt','r') as f:
          for line in f:
              line = float(line)
@@ -203,22 +205,29 @@ def OVERALL_SIMILARITY_FILE(Folder,inFile):
              line = float(line)
              Sim_EM.append(line)
     
-    print('DataSet '+Folder+' Similarities '+inFile)    
-
-    with open('SIMILARITIES/'+Folder+'/OverAll_'+inFile+'.txt','w') as f: 
-         for i in range (len(Sim_NER)):
-             Sim = Similarity_AB(Sim_EM[i], Sim_NER[i])
-             f.write(str(Sim)+'\n')
-             print('_____________OverAll Sim '+str(i)+'______________')
-    f.close()
+    print('DataSet '+Folder+' Similarities '+inFile)
+    for Alpha in np.arange (0.1, 0.9, 0.05):
+        Sims = []
+        for i in range (len(Sim_NER)):
+            Sims.append(Similarity_AB(Sim_EM[i], Sim_NER[i], round(Alpha,2)))
+        Dict[round(Alpha,2)] = Sims
+    return Dict
+    #with open('SIMILARITIES/'+Folder+'/OverAll_'+inFile+'.txt','w') as f: 
+    #     for i in range (len(Sim_NER)):
+    #         Sim = Similarity_AB(Sim_EM[i], Sim_NER[i])
+    #         f.write(str(Sim)+'\n')
+    #         print('_____________OverAll Sim '+str(i)+'______________')
+    #f.close()
 #________________________________________________________________________
 
 def OVERALL_SIMILARITY_DATASETS():
-    OVERALL_SIMILARITY_FILE('In-house','sents')
-    OVERALL_SIMILARITY_FILE('O’Shea et al','sentsinorder')
-    OVERALL_SIMILARITY_FILE('MSRP','msr_paraphrase_test')
-    OVERALL_SIMILARITY_FILE('SICK','SICK')
+    In_House = OVERALL_SIMILARITY_FILE('In-house','sents')
+    OShea = OVERALL_SIMILARITY_FILE('O’Shea et al','sentsinorder')
+    MSRP = OVERALL_SIMILARITY_FILE('MSRP','msr_paraphrase_test')
+    SICK = OVERALL_SIMILARITY_FILE('SICK','SICK')
     
+    return In_House, OShea, MSRP, SICK
+
 #________________________________________________________________________
 
 def LOAD_SIMILARITY_T(Folder,inFile,T):
@@ -319,16 +328,61 @@ def EVALUATION(k):
        #Sims = LOAD_SIMILARITY('SICK','SICK',0.7)
        #print(confusion_matrix(Act_Sims, Sims))
        print('______________________________________________')
+
+def Plotting():
+    In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
+             
+    Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
+    Correlations = []    
     
+    for Alpha in OShea.keys():
+        Correlations.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
+
+    x_val = OShea.keys()
+    y_val = Correlations
+    
+    plt.plot(x_val,y_val)
+    plt.plot(x_val,y_val,'or')
+    plt.show()
+   
 #------SIMILARITY_EM_DATASETS()
 #OVERALL_SIMILARITY_FILE('In-house','sents')
 #OVERALL_SIMILARITY_FILE('O’Shea et al','sentsinorder')
 
 #OVERALL_SIMILARITY_DATASETS()
 
-EVALUATION(1)
+#EVALUATION(1)
 
-#Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0,0.67)
-#Sims = LOAD_SIMILARITY('O’Shea et al','sentsinorder',0.7)
-#print(confusion_matrix(Act_Sims, Sims))
+#Plotting()
 
+In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
+ 
+Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
+OShea_Correl = []    
+for Alpha in OShea.keys():
+    OShea_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
+
+Act_Sims = LOAD_ACTUAL_SIMILARITY('MSRP','msr_paraphrase_test',1)   
+MSRP_Correl = []     
+for Alpha in OShea.keys():
+    MSRP_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, MSRP[Alpha])[0],2)))
+
+Act_Sims = LOAD_ACTUAL_SIMILARITY('SICK','SICK',2)    
+SICK_Correl = []     
+for Alpha in OShea.keys():
+    SICK_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, SICK[Alpha])[0],2)))
+
+x_val = [*OShea]#OShea.keys()
+    
+#plt.plot(x_val,OShea_Correl,label='OShea')
+plt.plot(x_val,OShea_Correl,'og')
+
+#plt.plot(x_val,MSRP_Correl,label='MSRP')
+plt.plot(x_val,MSRP_Correl,'ob')
+
+#plt.plot(x_val,SICK_Correl,label='SICK')
+plt.plot(x_val,SICK_Correl,'or')
+
+plt.legend()
+
+plt.show()

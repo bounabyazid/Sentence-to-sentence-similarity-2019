@@ -172,7 +172,7 @@ def SIMILARITY_DATASETS():
     SIMILARITY_FILE('SICK','SICK',2)
 
 #SIMILARITY_FILE('O’Shea et al','sentsinorder',0)
-SIMILARITY_DATASETS()
+#SIMILARITY_DATASETS()
 s1 = 'John said that they will begin evaluating the exams next week.'
 s2 = 'John said that test evaluation will be started by Wednesday.'
 
