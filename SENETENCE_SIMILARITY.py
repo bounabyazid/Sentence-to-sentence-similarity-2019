@@ -424,7 +424,12 @@ def EVALUATION(k):
 
 def Plotting():
     In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
- 
+    
+    Act_Sims = list(range(50,0,-1))
+    In_House_Correl = []    
+    for Alpha in OShea.keys():
+        In_House_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, In_House[Alpha])[0],2)))
+        
     Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
     OShea_Correl = []    
     for Alpha in OShea.keys():
@@ -442,15 +447,24 @@ def Plotting():
 
     x_val = [*OShea]#OShea.keys()
     
+    
+    plt.plot(x_val,In_House_Correl,'*c',label='In House')
+    
     #plt.plot(x_val,OShea_Correl,label='OShea')
-    plt.plot(x_val,OShea_Correl,'og')
+    plt.plot(x_val,OShea_Correl,'+g',label='OShea')
 
     #plt.plot(x_val,MSRP_Correl,label='MSRP')
-    plt.plot(x_val,MSRP_Correl,'ob')
+    plt.plot(x_val,MSRP_Correl,'xb',label='MSRP')
 
     #plt.plot(x_val,SICK_Correl,label='SICK')
-    plt.plot(x_val,SICK_Correl,'or')
+    plt.plot(x_val,SICK_Correl,'or',label='SICK')
 
+
+    plt.xlabel('Alpha')
+    plt.ylabel('Pearson oefficient')
+
+    #plt.title("Simple Plot")
+    
     plt.legend()
 
     plt.show()
@@ -463,6 +477,6 @@ def Plotting():
 
 #EVALUATION(1)
 
-#Plotting()
+Plotting()
 
-OShea_SIMILARITY_EM()
+#OShea_SIMILARITY_EM()
