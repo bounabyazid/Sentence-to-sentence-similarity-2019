@@ -4,6 +4,8 @@ import sys
 
 from scipy import spatial
 import numpy as np
+from numpy import arange
+
 import math
 
 import gensim
@@ -16,7 +18,12 @@ import pickle as pkl
 
 import matplotlib.pyplot as plt
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
+
+from sklearn.metrics import confusion_matrix,precision_recall_fscore_support
 
 def Euclidean_sim(a,b):
     return scipy.spatial.distance.euclidean(a,b)
@@ -106,6 +113,8 @@ def VECTORS_AVRG(tokens1,tokens2,model):
     for word1 in tokens1:
         if word1 in WV.vocab:
            vec1 += WV[word1]
+        if word1 in tokens2:
+            vec1 += WV['word']
         i += 1
     vec1 /= len(tokens1)
     
@@ -113,6 +122,8 @@ def VECTORS_AVRG(tokens1,tokens2,model):
     for word2 in tokens2:
         if word2 in WV.vocab:
            vec2 += WV[word2]
+        if word2 in tokens1:
+            vec2 += WV['word']
         i += 1
     vec2 /= len(tokens2)
 
@@ -244,7 +255,7 @@ def SIMILARITY_EM(sentence1,sentence2,Vocabulary):
 #________________________________________________________________________
 
 
-def SIMILARITY_FILE(Folder,inFile):
+def SIMILARITY_FILE(Folder,inFile,model):
 
     DATABASE = open('CLEANED DATASETS/'+Folder+'/'+inFile+'.txt','r')
     lines = DATABASE.readlines()
@@ -265,16 +276,25 @@ def SIMILARITY_FILE(Folder,inFile):
         
         print('_____________Sim '+str(i)+'______________')
 
-        SIMILARITIES.write(str(SIMILARITY_EM(sentence1,sentence2,Vocabulary))+'\n')
+        #SIMILARITIES.write(str(SIMILARITY_EM(sentence1,sentence2,Vocabulary))+'\n')
+        
+        tokens1 = PREPROCESSING(sentence1)
+        tokens2 = PREPROCESSING(sentence2)
+        
+        SIMILARITIES.write(str(VECTORS_AVRG(tokens1,tokens2,model))+'\n')
         i = i + 1
 
     SIMILARITIES.close()
 
 def SIMILARITY_EM_DATASETS():
-    SIMILARITY_FILE('In-house','sents')
-    SIMILARITY_FILE('O’Shea et al','sentsinorder')
-    SIMILARITY_FILE('MSRP','msr_paraphrase_test')
-    SIMILARITY_FILE('SICK','SICK')
+    print('Loading Google Pre-trained model ...')
+    model = gensim.models.KeyedVectors.load_word2vec_format('/home/polo/Downloads/GoogleNews-vectors-negative300.bin', binary=True)
+    print('Google Pre-trained model has been loaded')
+
+    SIMILARITY_FILE('In-house','sents',model)
+    SIMILARITY_FILE('O’Shea et al','sentsinorder',model)
+    SIMILARITY_FILE('MSRP','msr_paraphrase_test',model)
+    SIMILARITY_FILE('SICK','SICK',model)
 
 #________________________________________________________________________
 
@@ -381,6 +401,14 @@ def LOAD_ACTUAL_SIMILARITY(Folder,inFile,k):
 
 #________________________________________________________________________
 
+def BinaryList(List,T):
+    Sims = []
+    for elem in List:
+        Sims.append(1 if float(elem) >= T else 0)
+    return Sims
+
+#________________________________________________________________________
+
 def EVALUATION(k):
     if k == 0:     
        print('________________ O’Shea et al ________________')
@@ -426,10 +454,10 @@ def Plotting():
     In_House, OShea, MSRP, SICK = OVERALL_SIMILARITY_DATASETS()
     
     Act_Sims = list(range(50,0,-1))
-    In_House_Correl = []    
+    In_House_Correl = []
     for Alpha in OShea.keys():
         In_House_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, In_House[Alpha])[0],2)))
-        
+   
     Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
     OShea_Correl = []    
     for Alpha in OShea.keys():
@@ -447,27 +475,78 @@ def Plotting():
 
     x_val = [*OShea]#OShea.keys()
     
-    
     plt.plot(x_val,In_House_Correl,'*c',label='In House')
-    
-    #plt.plot(x_val,OShea_Correl,label='OShea')
     plt.plot(x_val,OShea_Correl,'+g',label='OShea')
-
-    #plt.plot(x_val,MSRP_Correl,label='MSRP')
     plt.plot(x_val,MSRP_Correl,'xb',label='MSRP')
-
-    #plt.plot(x_val,SICK_Correl,label='SICK')
     plt.plot(x_val,SICK_Correl,'or',label='SICK')
-
 
     plt.xlabel('Alpha')
     plt.ylabel('Pearson oefficient')
-
     #plt.title("Simple Plot")
     
     plt.legend()
-
     plt.show()
+    
+    print('__________________ IN HOUSE __________________')
+    Act_Sims = BinaryList(['%.2f' % elem for elem in list(arange(1.,0.,-0.02))],0.5)
+    for Alpha in OShea.keys():
+        Y = [ '%.2f' % elem for elem in In_House[Alpha]]
+        Y = BinaryList(Y,0.7)
+        print('_____Alpha = '+str(Alpha)+'_____\n')
+        precision = precision_score(Act_Sims, Y)
+        print('Precision: %.2f' % precision)
+        recall = recall_score(Act_Sims, Y)
+        print('Recall: %.2f' % recall)
+  
+    print('________________ O’Shea et al ________________')
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('O’Shea et al','sentsinordersims',0,0.67)
+    for Alpha in OShea.keys():
+        Y = ['%.2f' % elem for elem in OShea[Alpha]]
+        Y = BinaryList(Y,0.7)
+        print('_____Alpha = '+str(Alpha)+'_____\n')
+        precision = precision_score(Act_Sims, Y)
+        print('Precision: %.2f' % precision)
+        recall = recall_score(Act_Sims, Y)
+        print('Recall: %.2f' % recall)
+        
+    print('____________________ MSRP ____________________')
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('MSRP','msr_paraphrase_test',1,0.65)   
+    for Alpha in OShea.keys():
+        Y = [ '%.2f' % elem for elem in MSRP[Alpha]]
+        Y = BinaryList(Y,0.7)
+        print('_____Alpha = '+str(Alpha)+'_____\n')
+        precision = precision_score(Act_Sims, Y)
+        print('Precision: %.2f' % precision)
+        recall = recall_score(Act_Sims, Y)
+        print('Recall: %.2f' % recall)
+        
+    print('____________________ SICK ____________________')
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('SICK','SICK',1,0.85)   
+    for Alpha in OShea.keys():
+        Y = [ '%.2f' % elem for elem in SICK[Alpha]]
+        Y = BinaryList(Y,0.7)
+        print('_____Alpha = '+str(Alpha)+'_____\n')
+        precision = precision_score(Act_Sims, Y)
+        print('Precision: %.2f' % precision)
+        recall = recall_score(Act_Sims, Y)
+        print('Recall: %.2f' % recall)
+    #Y = [ '%.2f' % elem for elem in In_House[0.85] ]
+    #print (Y)
+    
+    # accuracy: (tp + tn) / (p + n)
+    #accuracy = accuracy_score(Act_Sims, Y)
+    #print('Accuracy: %f' % accuracy)
+    # precision tp / (tp + fp)
+    #precision = precision_score(Act_Sims, Y)
+    #print('Precision: %f' % precision)
+    # recall: tp / (tp + fn)
+    #recall = recall_score(Act_Sims, Y)
+    #print('Recall: %f' % recall)
+    # f1: 2 tp / (2 tp + fp + fn)
+    #f1 = f1_score(Act_Sims, Y)
+    #print('F1 score: %f' % f1)
+    
+    return In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl
    
 #------SIMILARITY_EM_DATASETS()
 #OVERALL_SIMILARITY_FILE('In-house','sents')
@@ -477,6 +556,11 @@ def Plotting():
 
 #EVALUATION(1)
 
-Plotting()
+In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl = Plotting()
+
+In_House_Correl = [ '%.2f' % elem for elem in In_House_Correl ]
+OShea_Correl = [ '%.2f' % elem for elem in OShea_Correl ]
+MSRP_Correl = [ '%.2f' % elem for elem in MSRP_Correl ]
+SICK_Correl = [ '%.2f' % elem for elem in SICK_Correl ]
 
 #OShea_SIMILARITY_EM()
