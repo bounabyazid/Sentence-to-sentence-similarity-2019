@@ -80,12 +80,9 @@ def EMMBEDINGS_SIMLARITY(tokens1,tokens2,model):
     return round(sim,2)
 #________________________________________________________________________
 
-def VECTORS_CORRELATION(sentence1,sentence2,model):
+def VECTORS_CORRELATION(tokens1,tokens2,model):
 
     WV = model.wv
-
-    tokens1 = PREPROCESSING(sentence1)
-    tokens2 = PREPROCESSING(sentence2)
 
     vec1 = np.zeros(300)
     vec2 = np.zeros(300)
@@ -93,13 +90,72 @@ def VECTORS_CORRELATION(sentence1,sentence2,model):
     for word1 in tokens1:
         if word1 in WV.vocab:
            vec1 += WV[word1]
-
+        else:
+            #if word1 in tokens2:
+            #   vec1 += WV['word']
+            #else:
+            if word1 not in tokens2:
+                vec = vec1/len(tokens1)
+                vec1 *= vec
+                
     for word2 in tokens2:
         if word2 in WV.vocab:
            vec2 += WV[word2]
-
+        else:
+            #if word2 in tokens1:
+            #   vec2 += WV['word']
+            #else:
+            if word2 not in tokens1:
+                vec = vec2/len(tokens2)
+                vec2 *= vec
+    #return round(cosine_sim(vec1,vec2),2),0         
     return scipy.stats.pearsonr(vec1,vec2)[0],scipy.stats.pearsonr(vec1,vec2)[1]
 
+def VECTORS_CORRELATION2(tokens1,tokens2,model):
+
+    WV = model.wv
+    
+    wordsIn1 = []
+    wordsIn2 = []
+
+    for word1 in tokens1:
+        if word1 in WV.vocab:
+           wordsIn1.append(word1)
+        
+    for word2 in tokens2:
+        if word2 in WV.vocab:
+           wordsIn2.append(word2)
+
+    #n = len(wordsIn1)
+    #m = len(wordsIn2)
+    
+    n = len(tokens1)
+    m = len(tokens2)
+    
+    Sim1 = 0
+    for word1 in wordsIn1:
+        MaxCorrel = 0
+        for word2 in wordsIn2:
+            Correl = round(scipy.stats.pearsonr(WV[word1],WV[word2])[0],2)
+            if MaxCorrel < Correl:
+               MaxCorrel = Correl
+        Sim1 += MaxCorrel
+        
+    Sim1 /= n
+    
+    Sim2 = 0
+    for word2 in wordsIn2:
+        MaxCorrel = 0
+        for word1 in wordsIn1:
+            Correl = round(scipy.stats.pearsonr(WV[word1],WV[word2])[0],2)
+            if MaxCorrel < Correl:
+               MaxCorrel = Correl
+        Sim2 += MaxCorrel
+        
+    Sim2 /= m
+    
+    Sim = Sim1 if n < m else Sim2
+    return Sim
 #________________________________________________________________________
 
 def VECTORS_AVRG(tokens1,tokens2,model):
@@ -113,8 +169,12 @@ def VECTORS_AVRG(tokens1,tokens2,model):
     for word1 in tokens1:
         if word1 in WV.vocab:
            vec1 += WV[word1]
-        if word1 in tokens2:
-            vec1 += WV['word']
+        else:
+            if word1 in tokens2:
+               vec1 += WV['word']
+            else:
+                vec = vec1/len(tokens2)
+                vec1 *= vec
         i += 1
     vec1 /= len(tokens1)
     
@@ -122,13 +182,17 @@ def VECTORS_AVRG(tokens1,tokens2,model):
     for word2 in tokens2:
         if word2 in WV.vocab:
            vec2 += WV[word2]
-        if word2 in tokens1:
-            vec2 += WV['word']
+        else:
+            if word2 in tokens1:
+               vec2 += WV['word']
+            else:
+                vec = vec2/len(tokens2)
+                vec2 *= vec
         i += 1
     vec2 /= len(tokens2)
 
-    return round(cosine_sim(vec1,vec2),2)
-    #return Euclidean_sim(vec1,vec2)
+    #return round(cosine_sim(vec1,vec2),2)
+    return Euclidean_sim(vec1,vec2)
 
 #________________________________________________________________________
     
@@ -163,7 +227,8 @@ def VECTORS_REPPORT07(tokens1,tokens2,model):
             Sim = round(cosine_sim(WV[word1],WV[word2]),2)
             if MaxSim < Sim:
                MaxSim = Sim
-        Sim1 += MaxSim     
+        Sim1 += MaxSim
+        
     Sim1 /= n
     
     Sim2 = 0
@@ -173,12 +238,13 @@ def VECTORS_REPPORT07(tokens1,tokens2,model):
             Sim = round(cosine_sim(WV[word1],WV[word2]),2)
             if MaxSim < Sim:
                MaxSim = Sim
-        Sim2 += MaxSim     
+        Sim2 += MaxSim
+       
     Sim2 /= m
 
-    #Sim = Sim1 if n < m else Sim2
+    Sim = Sim2 if n < m else Sim1
 
-    Sim = (Sim1 + Sim2)/2
+    #Sim = (Sim1 + Sim2)/2
 
     return round(Sim,2)
     
@@ -198,33 +264,61 @@ def OShea_SIMILARITY_EM():
     SimsEM = []
     SimsAVG = []
     SimsR7 = []
-    
+    SimsCorrel = []
     i = 1
     for line in lines:
         parts = line.split('.')
         sentence1 = parts[0]
         sentence2 = parts[1]
         
-        tokens1 = PREPROCESSING(sentence1)
-        tokens2 = PREPROCESSING(sentence2)
+        tokens1 = list(set(PREPROCESSING(sentence1)))
+        tokens2 = list(set(PREPROCESSING(sentence2)))
         
         print('_____________'+str(i)+'______________')
-    
+        print(tokens1,tokens2)
+                
         #SIMILARITIES.write(str(VECTORS_AVRG(tokens1,tokens2,model))+'\n')
         #SIMILARITIES.write(str(EMMBEDINGS_SIMLARITY(tokens1,tokens2,model))+'\n')
         SimsAVG.append(VECTORS_AVRG(tokens1,tokens2,model))
         SimsEM.append(EMMBEDINGS_SIMLARITY(tokens1,tokens2,model))
         SimsR7.append(VECTORS_REPPORT07(tokens1,tokens2,model))
+        SimsCorrel.append(VECTORS_CORRELATION2(tokens1,tokens2,model))#[0])
+        
+        print('EM     = ',SimsEM[i-1])
+        print('Sims AVG    = ',SimsAVG[i-1])
+        print('Sims R7     = ',SimsR7[i-1])
+        print('Sims Correl = ',SimsCorrel[i-1])
+
         i = i + 1
 
     #SIMILARITIES.close()
     
     Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
-    
+        
     print(scipy.stats.pearsonr(Act_Sims,SimsEM)[0])
     print(scipy.stats.pearsonr(Act_Sims,SimsAVG)[0])
     print(scipy.stats.pearsonr(Act_Sims,SimsR7)[0])
+    print(scipy.stats.pearsonr(Act_Sims,SimsCorrel)[0])
+    
+    Act_Sims  = list(np.divide(Act_Sims, 4))
+    #Act_Sims = [ '%.2f' % elem for elem in Act_Sims ]
 
+
+    print('________________ O’Shea et al ________________')
+    
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('O’Shea et al','sentsinordersims',0,0.5)
+    SimsCorrel = BinaryList(SimsCorrel,0.5)
+    print(confusion_matrix(Act_Sims, SimsCorrel))
+
+    accuracy = accuracy_score(Act_Sims, SimsCorrel)
+    print('Correl Accuracy: %f' % accuracy)
+
+    SimsR7 = BinaryList(SimsR7,0.5)
+    print(confusion_matrix(Act_Sims, SimsR7))
+    accuracy = accuracy_score(Act_Sims, SimsR7)
+    print('R7 Accuracy: %f' % accuracy)
+    
+    #return SimsEM, SimsAVG, SimsR7, SimsCorrel, Act_Sims
 #________________________________________________________________________
                 
 
@@ -281,7 +375,8 @@ def SIMILARITY_FILE(Folder,inFile,model):
         tokens1 = PREPROCESSING(sentence1)
         tokens2 = PREPROCESSING(sentence2)
         
-        SIMILARITIES.write(str(VECTORS_AVRG(tokens1,tokens2,model))+'\n')
+        #SIMILARITIES.write(str(VECTORS_AVRG(tokens1,tokens2,model))+'\n')
+        SIMILARITIES.write(str(VECTORS_CORRELATION2(tokens1,tokens2,model))+'\n')
         i = i + 1
 
     SIMILARITIES.close()
@@ -456,22 +551,22 @@ def Plotting():
     Act_Sims = list(range(50,0,-1))
     In_House_Correl = []
     for Alpha in OShea.keys():
-        In_House_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, In_House[Alpha])[0],2)))
+        In_House_Correl.append((round(scipy.stats.pearsonr(Act_Sims, In_House[Alpha])[0],2)))
    
     Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',0)
     OShea_Correl = []    
     for Alpha in OShea.keys():
-        OShea_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
+        OShea_Correl.append((round(scipy.stats.pearsonr(Act_Sims, OShea[Alpha])[0],2)))
 
     Act_Sims = LOAD_ACTUAL_SIMILARITY('MSRP','msr_paraphrase_test',1)   
     MSRP_Correl = []     
     for Alpha in OShea.keys():
-        MSRP_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, MSRP[Alpha])[0],2)))
+        MSRP_Correl.append((round(scipy.stats.pearsonr(Act_Sims, MSRP[Alpha])[0],2)))
 
     Act_Sims = LOAD_ACTUAL_SIMILARITY('SICK','SICK',2)    
     SICK_Correl = []     
     for Alpha in OShea.keys():
-        SICK_Correl.append(abs(round(scipy.stats.pearsonr(Act_Sims, SICK[Alpha])[0],2)))
+        SICK_Correl.append((round(scipy.stats.pearsonr(Act_Sims, SICK[Alpha])[0],2)))
 
     x_val = [*OShea]#OShea.keys()
     
@@ -508,28 +603,34 @@ def Plotting():
         print('Precision: %.2f' % precision)
         recall = recall_score(Act_Sims, Y)
         print('Recall: %.2f' % recall)
+        accuracy = accuracy_score(Act_Sims, Y)
+        print('Accuracy: %f' % accuracy)
         
     print('____________________ MSRP ____________________')
-    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('MSRP','msr_paraphrase_test',1,0.65)   
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('MSRP','msr_paraphrase_test',1,0.6)   
     for Alpha in OShea.keys():
         Y = [ '%.2f' % elem for elem in MSRP[Alpha]]
-        Y = BinaryList(Y,0.7)
+        Y = BinaryList(Y,0.5)
         print('_____Alpha = '+str(Alpha)+'_____\n')
         precision = precision_score(Act_Sims, Y)
         print('Precision: %.2f' % precision)
         recall = recall_score(Act_Sims, Y)
         print('Recall: %.2f' % recall)
+        accuracy = accuracy_score(Act_Sims, Y)
+        print('Accuracy: %f' % accuracy)
         
     print('____________________ SICK ____________________')
-    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('SICK','SICK',1,0.85)   
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('SICK','SICK',2,0.85)   
     for Alpha in OShea.keys():
         Y = [ '%.2f' % elem for elem in SICK[Alpha]]
-        Y = BinaryList(Y,0.7)
+        Y = BinaryList(Y,0.8)
         print('_____Alpha = '+str(Alpha)+'_____\n')
         precision = precision_score(Act_Sims, Y)
         print('Precision: %.2f' % precision)
         recall = recall_score(Act_Sims, Y)
         print('Recall: %.2f' % recall)
+        accuracy = accuracy_score(Act_Sims, Y)
+        print('Accuracy: %f' % accuracy)
     #Y = [ '%.2f' % elem for elem in In_House[0.85] ]
     #print (Y)
     
@@ -547,7 +648,9 @@ def Plotting():
     #print('F1 score: %f' % f1)
     
     return In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl
-   
+
+def Plotting_OShea():
+    ''
 #------SIMILARITY_EM_DATASETS()
 #OVERALL_SIMILARITY_FILE('In-house','sents')
 #OVERALL_SIMILARITY_FILE('O’Shea et al','sentsinorder')
@@ -558,9 +661,10 @@ def Plotting():
 
 In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl = Plotting()
 
-In_House_Correl = [ '%.2f' % elem for elem in In_House_Correl ]
-OShea_Correl = [ '%.2f' % elem for elem in OShea_Correl ]
-MSRP_Correl = [ '%.2f' % elem for elem in MSRP_Correl ]
-SICK_Correl = [ '%.2f' % elem for elem in SICK_Correl ]
+#In_House_Correl = [ '%.2f' % elem for elem in In_House_Correl ]
+#OShea_Correl = [ '%.2f' % elem for elem in OShea_Correl ]
+#MSRP_Correl = [ '%.2f' % elem for elem in MSRP_Correl ]
+#SICK_Correl = [ '%.2f' % elem for elem in SICK_Correl ]
 
 #OShea_SIMILARITY_EM()
+
