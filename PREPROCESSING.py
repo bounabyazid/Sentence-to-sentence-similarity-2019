@@ -73,6 +73,7 @@ def normalise_words(words):
   
 def tokenize(text):
     stop_words = list(set(('a','also','an','and','as','at','but','by','for','from','in','it','its','of','on','or','that','the','to','may','is')))#+list(punctuation)
+    stop_words.extend(list(set(stopwords.words('english'))))
     text = Replace_Punctuations(text)  
     words = word_tokenize(text)
 
