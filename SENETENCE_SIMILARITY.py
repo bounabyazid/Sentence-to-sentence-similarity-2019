@@ -488,8 +488,8 @@ def LOAD_ACTUAL_SIMILARITY(Folder,inFile,k):
            Act_Sims.append(float(line))
         if k == 1 and i > 0:
            Act_Sims.append(float(line.split('\t')[0]))
-        if k == 2 and i > 0:
-           Act_Sims.append(float(line.split('\t')[4]))
+        if k == 2:
+           Act_Sims.append(round(float(line)/5.,2))
         i=+1
              
     return Act_Sims
@@ -576,14 +576,17 @@ def Plotting():
     plt.plot(x_val,SICK_Correl,'or',label='SICK')
 
     plt.xlabel('Alpha')
-    plt.ylabel('Pearson oefficient')
+    plt.ylabel('Pearson Coefficient')
     #plt.title("Simple Plot")
     
     plt.legend()
+    plt.savefig('Alpha_vs_Pearson_Coefficient.eps', format='eps')
+
     plt.show()
+
     
     print('__________________ IN HOUSE __________________')
-    Act_Sims = BinaryList(['%.2f' % elem for elem in list(arange(1.,0.,-0.02))],0.5)
+    Act_Sims = BinaryList(['%.2f' % elem for elem in list(arange(1.,0.,-0.02))],0.7)
     for Alpha in OShea.keys():
         Y = [ '%.2f' % elem for elem in In_House[Alpha]]
         Y = BinaryList(Y,0.7)
@@ -594,7 +597,7 @@ def Plotting():
         print('Recall: %.2f' % recall)
   
     print('________________ O’Shea et al ________________')
-    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('O’Shea et al','sentsinordersims',0,0.67)
+    Act_Sims = LOAD_ACTUAL_SIMILARITY_T('O’Shea et al','sentsinordersims',0,0.7)
     for Alpha in OShea.keys():
         Y = ['%.2f' % elem for elem in OShea[Alpha]]
         Y = BinaryList(Y,0.7)
@@ -623,7 +626,7 @@ def Plotting():
     Act_Sims = LOAD_ACTUAL_SIMILARITY_T('SICK','SICK',2,0.85)   
     for Alpha in OShea.keys():
         Y = [ '%.2f' % elem for elem in SICK[Alpha]]
-        Y = BinaryList(Y,0.8)
+        Y = BinaryList(Y,0.85)
         print('_____Alpha = '+str(Alpha)+'_____\n')
         precision = precision_score(Act_Sims, Y)
         print('Precision: %.2f' % precision)
@@ -650,7 +653,174 @@ def Plotting():
     return In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl
 
 def Plotting_OShea():
-    ''
+    OShea = []
+    Sim_NER = []
+    Sim_EM = []
+    
+    with open('SIMILARITIES/O’Shea et al/NER_sentsinorder.txt','r') as f:
+         for line in f:
+             line = float(line)
+             Sim_NER.append(line)
+         
+    with open('SIMILARITIES/O’Shea et al/EM_sentsinorder.txt','r') as f:
+         for line in f:
+             line = float(line)
+             Sim_EM.append(line)
+    
+    for i in range (len(Sim_NER)):
+        OShea.append(Similarity_AB(Sim_EM[i], Sim_NER[i], 0.8))
+        
+    Act_Sims = LOAD_ACTUAL_SIMILARITY('O’Shea et al','sentsinordersims',2)
+    
+    
+    x_val = list(range(1, 66))
+    
+    plt.plot(x_val,OShea,'-ro',label='Our Formula')
+    plt.plot(x_val,Act_Sims,'-bo',label='OShea')
+    
+    plt.xlabel('Sentences Paire')
+    plt.ylabel('Similarity')
+    #plt.title("Simple Plot")
+    
+    plt.legend()
+    plt.savefig('O’Shea_et_al.eps', format='eps')
+
+    plt.show()
+    
+    return Act_Sims, OShea
+
+def Measure_Diff_Sim(x):
+    return round(sum([math.pow(x[n]-x[n-1], 2) for n in range(1,len(x))]), 2)
+
+def Evaluate_In_House():
+    
+    Sim_NER = []
+    Sim_EM = []
+    
+    Wup = []
+    Yago_Gaph = []
+    Yago_Paph = []
+    DBPedia = []
+    W2V = []
+
+    Alpha_IN_HOUSE = {}
+    Diff_IN_HOUSE = {}
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/SIMILARITIES/In-house/NER_sents.txt','r') as f:
+         for line in f:
+             Sim_NER.append(float(line))
+         
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/SIMILARITIES/In-house/EM_sents.txt','r') as f:
+         for line in f:
+             Sim_EM.append(float(line))
+    for Alpha in np.arange (0.1, 0.9, 0.05):
+        IN_HOUSE = []
+        for i in range (len(Sim_NER)):
+            IN_HOUSE.append(Similarity_AB(Sim_EM[i], Sim_NER[i], round(Alpha,2)))
+        Alpha_IN_HOUSE[round(Alpha,2)] = IN_HOUSE
+        Diff_IN_HOUSE[round(Alpha,2)] = Measure_Diff_Sim(IN_HOUSE)
+        
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/wup_sims.txt','r') as f:
+         for line in f:
+             Wup.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/yago_graph.txt','r') as f:
+         for line in f:
+             Yago_Gaph.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/yago_path.txt','r') as f:
+         for line in f:
+             Yago_Paph.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/dbpedia.txt','r') as f:
+         for line in f:
+             DBPedia.append(float(line))
+    
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/Google_w2vec_sim.txt','r') as f:
+         for line in f:
+             W2V.append(float(line))
+         
+    Diff_Wup = Measure_Diff_Sim(Wup)
+    Diff_Yago_Gaph = Measure_Diff_Sim(Yago_Gaph)
+    Diff_Yago_Paph = Measure_Diff_Sim(Yago_Paph)
+    Diff_DBPedia = Measure_Diff_Sim(DBPedia)
+    Diff_W2V = Measure_Diff_Sim(W2V)
+    
+    return Diff_Wup, Diff_Yago_Gaph, Diff_Yago_Paph, Diff_DBPedia, Diff_W2V, Diff_IN_HOUSE
+
+def Plotting_In_House(Alpha):
+    IN_HOUSE = []
+    Sim_NER = []
+    Sim_EM = []
+    
+    Wup = []
+    Yago_Gaph = []
+    Yago_Paph = []
+    DBPedia = []
+    W2V = []
+    
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/SIMILARITIES/In-house/NER_sents.txt','r') as f:
+         for line in f:
+             Sim_NER.append(float(line))
+         
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/SIMILARITIES/In-house/EM_sents.txt','r') as f:
+         for line in f:
+             Sim_EM.append(float(line))
+    
+    for i in range (len(Sim_NER)):
+        IN_HOUSE.append(Similarity_AB(Sim_EM[i], Sim_NER[i], Alpha))
+        
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/wup_sims.txt','r') as f:
+         for line in f:
+             Wup.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/yago_graph.txt','r') as f:
+         for line in f:
+             Yago_Gaph.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/yago_path.txt','r') as f:
+         for line in f:
+             Yago_Paph.append(float(line))
+             
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/dbpedia.txt','r') as f:
+         for line in f:
+             DBPedia.append(float(line))
+    
+    with open('/home/polo/.config/spyder-py3/Paper-For-Oulu-PhD-master/nlpprojectmeetingforinstallation/Results/Google_w2vec_sim.txt','r') as f:
+         for line in f:
+             W2V.append(float(line))
+             
+    Diff_Wup, Diff_Yago_Gaph, Diff_Yago_Paph, Diff_DBPedia, Diff_W2V, Diff_IN_HOUSE = Evaluate_In_House()
+     
+    x_val = list(range(1, 51))
+    
+    plt.plot(x_val,Wup,'-co',label='Diff Wup = '+str(Diff_Wup))
+    plt.plot(x_val,W2V,'-ko',label='Diff W2V = '+str(Diff_Wup))
+    plt.plot(x_val,DBPedia,'-go',label='Diff DBPedia = '+str(Measure_Diff_Sim(DBPedia)))
+
+    plt.plot(x_val,Yago_Gaph,'-bo',label='Diff Yago Gaph = '+str(Diff_Yago_Gaph))
+    plt.plot(x_val,Yago_Paph,'-mo',label='Diff Yago Paph = '+str(Diff_Yago_Paph))
+
+    plt.plot(x_val,IN_HOUSE,'-ro',label='Our Formula Alpha = '+str(Alpha)+',\n Diff = '+str(Diff_IN_HOUSE[round(Alpha,2)]))
+
+    
+    plt.xlabel('Sentences Paire')
+    plt.ylabel('Similarity')
+    #plt.title("Simple Plot")
+    
+    plt.legend(bbox_to_anchor=(0, -0.15, 1, 0), loc=2, ncol=2, mode="expand", borderaxespad=0)
+    
+    #plt.legend(loc='best')
+    plt.savefig('IN_HOUSE_FIGURES/In_House_'+str(Alpha)+'.eps', format='eps',
+                 bbox_inches='tight')
+
+    plt.show()
+    
+    return Measure_Diff_Sim(IN_HOUSE)
+
+for Alpha in np.arange (0.1, 0.9, 0.05):
+    Diff = Plotting_In_House(Alpha)
+
+
 #------SIMILARITY_EM_DATASETS()
 #OVERALL_SIMILARITY_FILE('In-house','sents')
 #OVERALL_SIMILARITY_FILE('O’Shea et al','sentsinorder')
@@ -659,7 +829,7 @@ def Plotting_OShea():
 
 #EVALUATION(1)
 
-In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl = Plotting()
+#In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl = Plotting()
 
 #In_House_Correl = [ '%.2f' % elem for elem in In_House_Correl ]
 #OShea_Correl = [ '%.2f' % elem for elem in OShea_Correl ]
@@ -668,3 +838,4 @@ In_House_Correl, OShea_Correl, MSRP_Correl, SICK_Correl = Plotting()
 
 #OShea_SIMILARITY_EM()
 
+Act_Sims, OShea = Plotting_OShea()
